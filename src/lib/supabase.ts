@@ -2,16 +2,19 @@ import { createClient } from '@supabase/supabase-js';
 
 // Initialize the Supabase client
 // Note: In a production app, these should be environment variables
-const supabaseUrl = "https://nlsuaqcotukmcinitdyt.supabase.co" || '';
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sc3VhcWNvdHVrbWNpbml0ZHl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4MDMyMDksImV4cCI6MjA2MDM3OTIwOX0.YTwbcLLNBazg1ogguazncU3ukqHbdjy2LZ0VJ31UNz0" || '';
-
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // Check if the environment variables are set
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase credentials not found in environment variables');
 }
 
 // Export the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase credentials are missing in environment variables');
+}
+
+export const supabase = createClient(supabaseUrl as string, supabaseAnonKey as string);
 
 // Table names
 export const TABLES = {

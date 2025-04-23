@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { toast } from "sonner"
-
-// In a real application, this would be handled securely on the server
-const ADMIN_CREDENTIALS = {
-  username: "admin",
-  password: "password123"
-}
 
 export default function AdminLogin() {
   const router = useRouter()
@@ -20,23 +21,33 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API request
-    setTimeout(() => {
-      if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-        // In a real application, you would use a secure authentication method
-        // such as JWT tokens or session cookies
+    try {
+      const response = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
         localStorage.setItem("isAdminLoggedIn", "true")
         toast.success("Login successful")
         router.push("/admin/dashboard")
       } else {
-        toast.error("Invalid credentials")
+        toast.error(result.message || "Invalid credentials")
       }
+    } catch (err) {
+      toast.error("Something went wrong. Please try again.")
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -74,7 +85,11 @@ export default function AdminLogin() {
             </div>
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full bg-brand-teal hover:bg-brand-teal/90" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full bg-brand-teal hover:bg-brand-teal/90"
+              disabled={isLoading}
+            >
               {isLoading ? "Logging in..." : "Login"}
             </Button>
           </CardFooter>

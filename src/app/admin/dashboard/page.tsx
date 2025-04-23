@@ -15,9 +15,93 @@ export default function AdminDashboard() {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [loadingAction, setLoadingAction] = useState(false)
-  const [blogPosts, setBlogPosts] = useState([])
-  const [subscribers, setSubscribers] = useState([])
+  //const [loadingAction, setLoadingAction] = useState(false)
+  interface BlogPost {
+    id: string;
+    title: string;
+    excerpt: string;
+    content: string;
+    author: string;
+    date: string;
+    readTime: string;
+    categories: string[];
+    tags: string[];
+    image: string;
+    featured: boolean;
+  }
+
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([])
+  interface Subscriber {
+    id: string;
+    email: string;
+    date: string;
+  }
+  
+  const [subscribers, setSubscribers] = useState<Subscriber[]>([])
+
+
+  // New blog post state
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+const [editForm, setEditForm] = useState({ title: "", excerpt: "", content: "" });
+const [loadingAction, setLoadingAction] = useState(false);
+
+function startEditing(post: BlogPost) {
+  setEditingPostId(post.id);
+  setEditForm({ title: post.title, excerpt: post.excerpt, content: post.content });
+}
+
+function cancelEditing() {
+  setEditingPostId(null);
+  setEditForm({ title: "", excerpt: "", content: "" });
+}
+
+async function saveEdit(id: string) {
+  setLoadingAction(true);
+  interface BlogPostUpdate {
+    title?: string;
+    excerpt?: string;
+    content?: string;
+    author?: string;
+    categories?: string[];
+    tags?: string[];
+    image?: string;
+    featured?: boolean;
+  }
+
+  const handleUpdatePost = async (id: string, updatedData: BlogPostUpdate) => {
+    try {
+      if (!supabase) {
+        throw new Error("Database not configured");
+      }
+
+      const { error } = await supabase
+        .from(TABLES.BLOG_POSTS)
+        .update(updatedData)
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Refresh blog posts
+      await fetchBlogPosts();
+      toast.success("Post updated successfully");
+    } catch (error) {
+      console.error("Error updating post:", error);
+      if (error instanceof Error) {
+        toast.error("Failed to update post. " + error.message);
+      } else {
+        toast.error("Failed to update post. Please try again.");
+      }
+    }
+  };
+
+  await handleUpdatePost(id, editForm);
+  setEditingPostId(null);
+  setLoadingAction(false);
+}
+
+  //new blog post state
 
   // Form state for new blog post
   const [formData, setFormData] = useState({
@@ -164,7 +248,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData({
       ...formData,
@@ -172,7 +256,7 @@ export default function AdminDashboard() {
     })
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoadingAction(true)
 
@@ -235,7 +319,11 @@ export default function AdminDashboard() {
       toast.success("Blog post created successfully!")
     } catch (error) {
       console.error("Error creating blog post:", error)
-      toast.error("Failed to create blog post. " + (error.message || "Please try again."))
+      if (error instanceof Error) {
+        toast.error("Failed to create blog post. " + error.message);
+      } else {
+        toast.error("Failed to create blog post. Please try again.");
+      }
 
       // Fallback to localStorage if Supabase fails
       try {
@@ -286,7 +374,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleDeletePost = async (postId) => {
+  const handleDeletePost = async (postId: string) => {
     if (!confirm("Are you sure you want to delete this post?")) {
       return
     }
@@ -312,7 +400,8 @@ export default function AdminDashboard() {
       toast.success("Post deleted successfully")
     } catch (error) {
       console.error("Error deleting post:", error)
-      toast.error("Failed to delete post. " + (error.message || "Please try again."))
+      const errorMessage = error instanceof Error ? error.message : "Please try again.";
+      toast.error("Failed to delete post. " + errorMessage);
 
       // Fallback to localStorage
       try {
@@ -328,7 +417,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleDeleteSubscriber = async (subscriberId) => {
+  const handleDeleteSubscriber = async (subscriberId: string) => {
     if (!confirm("Are you sure you want to remove this subscriber?")) {
       return
     }
@@ -354,7 +443,11 @@ export default function AdminDashboard() {
       toast.success("Subscriber removed successfully")
     } catch (error) {
       console.error("Error removing subscriber:", error)
-      toast.error("Failed to remove subscriber. " + (error.message || "Please try again."))
+      if (error instanceof Error) {
+        toast.error("Failed to remove subscriber. " + error.message);
+      } else {
+        toast.error("Failed to remove subscriber. Please try again.");
+      }
 
       // Fallback to localStorage
       try {
@@ -512,45 +605,83 @@ export default function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="manage-posts">
-          <Card>
-            <CardHeader>
-              <CardTitle>Manage Blog Posts</CardTitle>
-              <CardDescription>
-                View and manage all your blog posts
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {blogPosts.length === 0 ? (
-                <p className="text-center py-8 text-gray-500">No blog posts found. Create your first post!</p>
-              ) : (
-                <div className="space-y-4">
-                  {blogPosts.map((post) => (
-                    <div key={post.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between">
-                        <h3 className="font-bold">{post.title}</h3>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">Edit</Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={loadingAction}
-                            onClick={() => handleDeletePost(post.id)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {post.date} • {post.readTime || post.read_time} • Categories: {Array.isArray(post.categories) ? post.categories.join(", ") : post.categories}
-                      </p>
-                      <p className="mt-2 text-gray-700">{post.excerpt}</p>
-                    </div>
-                  ))}
+  <Card>
+    <CardHeader>
+      <CardTitle>Manage Blog Posts</CardTitle>
+      <CardDescription>
+        View and manage all your blog posts
+      </CardDescription>
+    </CardHeader>
+    <CardContent>
+      {blogPosts.length === 0 ? (
+        <p className="text-center py-8 text-gray-500">No blog posts found. Create your first post!</p>
+      ) : (
+        <div className="space-y-4">
+          {blogPosts.map((post) => (
+            <div key={post.id} className="border rounded-lg p-4">
+              {editingPostId === post.id ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    className="input w-full"
+                    placeholder="Title"
+                  />
+                  <input
+                    type="text"
+                    value={editForm.excerpt}
+                    onChange={(e) => setEditForm({ ...editForm, excerpt: e.target.value })}
+                    className="input w-full"
+                    placeholder="Excerpt"
+                  />
+                  <textarea
+                    value={editForm.content}
+                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                    className="textarea w-full"
+                    placeholder="Content"
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <Button size="sm" onClick={() => saveEdit(post.id)}>Save</Button>
+                    <Button variant="outline" size="sm" onClick={cancelEditing}>Cancel</Button>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <h3 className="font-bold">{post.title}</h3>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startEditing(post)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeletePost(post.id)}
+                        disabled={loadingAction}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {post.date} • {post.readTime || post.read_time} • Categories: {Array.isArray(post.categories) ? post.categories.join(", ") : post.categories}
+                  </p>
+                  <p className="mt-2 text-gray-700">{post.excerpt}</p>
+                </>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          ))}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+</TabsContent>
+
 
         <TabsContent value="subscribers">
           <Card>

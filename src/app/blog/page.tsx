@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { Montserrat } from'next/font/google'
 import {
   SearchIcon,
   ChevronRight,
@@ -99,7 +100,19 @@ export default function BlogPage() {
   const [categories, setCategories] = useState(baseCategories)
   const [activeCategory, setActiveCategory] = useState("All")
   const [searchTerm, setSearchTerm] = useState("")
-  const [filteredPosts, setFilteredPosts] = useState([])
+  interface BlogPost {
+    id: string
+    title: string
+    excerpt: string
+    image: string
+    author: string
+    date: string
+    readTime: string
+    categories: string[]
+    featured?: boolean
+  }
+  
+  const [filteredPosts, setFilteredPosts] = useState<BlogPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -167,7 +180,7 @@ export default function BlogPage() {
         }))
 
         // Combine base posts with Supabase posts
-        const allPosts = [...baseBlogPosts, ...supabasePosts]
+        const allPosts = [...supabasePosts,...baseBlogPosts]
         setBlogPosts(allPosts)
 
         // Extract unique categories
@@ -214,7 +227,7 @@ export default function BlogPage() {
   }
 
   // Function to filter posts based on category and search term
-  const applyFilters = (category, search) => {
+  const applyFilters = (category: string, search: string) => {
     let result = [...blogPosts]
 
     // Filter by category
@@ -294,7 +307,11 @@ export default function BlogPage() {
       toast.success("Thank you for subscribing to our newsletter!")
     } catch (error) {
       console.error("Error saving subscriber to Supabase:", error)
-      toast.error("Failed to subscribe. " + (error.message || "Please try again."))
+      if (error instanceof Error) {
+        toast.error("Failed to subscribe. " + (error.message || "Please try again."))
+      } else {
+        toast.error("Failed to subscribe. Please try again.")
+      }
 
       // Fallback to localStorage
       try {

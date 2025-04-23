@@ -1,8 +1,12 @@
+'use client'
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react"
+import { supabase, TABLES } from "@/lib/supabase"
+import { useState } from "react"
+import { toast } from "react-hot-toast"
 
 const footerLinks = [
   {
@@ -33,7 +37,119 @@ const footerLinks = [
   },
 ]
 
+
+
 export default function Footer() {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [email, setEmail] = useState("") // Added state for email
+
+  const handleSubscribe = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    if (!email.trim() || !email.includes('@')) {
+      toast.error("Please enter a valid email address")
+      setIsSubmitting(false)
+      return
+    }
+
+    try {
+      // Check if Supabase is properly configured
+      if (!supabase) {
+        throw new Error("Database not configured")
+      }
+
+      // Check if the email already exists in Supabase
+      const { data: existingSubscribers, error: checkError } = await supabase
+        .from(TABLES.SUBSCRIBERS)
+        .select('email')
+        .eq('email', email.trim())
+
+      if (checkError) {
+        throw checkError
+      }
+
+      if (existingSubscribers && existingSubscribers.length > 0) {
+        toast.error("This email is already subscribed")
+        setIsSubmitting(false)
+        return
+      }
+
+      // Create a new subscriber
+      const currentDate = new Date()
+      const subscriber = {
+        email: email.trim(),
+        date: currentDate.toISOString(),
+        created_at: currentDate.toISOString()
+      }
+
+      // Insert the subscriber into Supabase
+      const { error } = await supabase
+        .from(TABLES.SUBSCRIBERS)
+        .insert(subscriber)
+
+      if (error) {
+        throw error
+      }
+
+      // Reset email field
+      setEmail("")
+
+      // Show success message
+      toast.success("Thank you for subscribing to our newsletter!")
+    } catch (error) {
+      console.error("Error saving subscriber to Supabase:", error)
+      if (error instanceof Error) {
+        toast.error("Failed to subscribe. " + (error.message || "Please try again."))
+      } else {
+        toast.error("Failed to subscribe. Please try again.")
+      }
+
+      // Fallback to localStorage
+      try {
+        // Create a new subscriber for localStorage
+        const newSubscriber = {
+          id: Date.now().toString(),
+          email: email.trim(),
+          date: new Date().toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+          })
+        }
+
+        // Get existing subscribers from localStorage
+        const existingSubscribersJSON = localStorage.getItem("subscribers")
+        const existingSubscribers = existingSubscribersJSON
+          ? JSON.parse(existingSubscribersJSON)
+          : []
+
+        // Check if email already exists in localStorage
+        if (existingSubscribers.some((sub: { email: string }) => sub.email === email)) {
+          toast.error("This email is already subscribed")
+          return
+        }
+
+        // Add new subscriber to localStorage
+        const updatedSubscribers = [...existingSubscribers, newSubscriber]
+        localStorage.setItem("subscribers", JSON.stringify(updatedSubscribers))
+
+        // Reset email field
+        setEmail("")
+
+        // Show success message
+        toast.success("Thank you for subscribing to our newsletter! (Saved locally)")
+      } catch (localError) {
+        console.error("Error saving to localStorage:", localError)
+        toast.error("Failed to subscribe to newsletter.")
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+
+
   return (
     <footer className="bg-gray-50 border-t">
       <div className="container-custom py-12">
@@ -115,16 +231,25 @@ export default function Footer() {
               <h3 className="text-lg font-medium mb-2">Subscribe to our newsletter</h3>
               <p className="text-sm text-gray-600">Stay updated with our latest news and offers.</p>
             </div>
+            <form onSubmit={handleSubscribe} >
             <div className="flex w-full max-w-md gap-2">
               <Input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-grow"
+                  type="email"
+                  placeholder="Enter your email"
+                  className="flex-grow"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
               />
-              <Button className="bg-brand-teal hover:bg-brand-teal/90 text-white">
-                Subscribe
-              </Button>
+              <Button
+                  type="submit"
+                  className="bg-brand-teal hover:bg-brand-teal/90 text-white whitespace-nowrap"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Subscribing..." : "Subscribe"}
+                </Button>
             </div>
+            </form>
           </div>
         </div>
 
