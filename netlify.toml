@@ -8,5 +8,5 @@
 [build.environment]
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
 
-[[plugins]]
+[plugins]
   package = "@netlify/plugin-nextjs"
